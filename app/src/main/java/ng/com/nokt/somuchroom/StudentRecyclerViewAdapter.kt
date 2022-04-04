@@ -9,9 +9,10 @@ import ng.com.nokt.somuchroom.databinding.StudentItemsBinding
 import ng.com.nokt.somuchroom.db.Student
 import ng.com.nokt.somuchroom.generated.callback.OnClickListener
 
-class StudentRecyclerViewAdapter(private val studentList: List<Student>,  private val clickListener:
+class StudentRecyclerViewAdapter(private val clickListener:
     (Student)-> Unit):RecyclerView.Adapter<StudentViewHolder>() {
 
+    private val studentList = ArrayList<Student>()
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StudentViewHolder {
         val layoutInflater: LayoutInflater = LayoutInflater.from(parent.context)
         val binding: StudentItemsBinding = DataBindingUtil
@@ -25,6 +26,11 @@ class StudentRecyclerViewAdapter(private val studentList: List<Student>,  privat
 
     override fun getItemCount(): Int {
         return studentList.size
+    }
+
+    fun setList(students: List<Student>){
+        studentList.clear()
+        studentList.addAll(students)
     }
 }
 

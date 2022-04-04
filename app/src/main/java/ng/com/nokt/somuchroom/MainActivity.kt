@@ -19,6 +19,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding:ActivityMainBinding
     private lateinit var studentViewModel: StudentViewModel
+    private lateinit var adapter: StudentRecyclerViewAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,22 +33,31 @@ class MainActivity : AppCompatActivity() {
         binding.lifecycleOwner = this
 
         initRecyclerView()
+
+        studentViewModel.message.observe(this, Observer {
+            it.getContentIfNotHandled()?.let {
+                Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            }
+        })
     }
 
     private fun initRecyclerView(){
         binding.recStudent.layoutManager = LinearLayoutManager(this)
+        adapter = StudentRecyclerViewAdapter({selectedItem: Student->listItemClicked(selectedItem)})
+        binding.recStudent.adapter = adapter
         displayStudentsList()
     }
 
     private fun displayStudentsList(){
         studentViewModel.students.observe(this, Observer {
             Log.i("Students", it.toString())
-            binding.recStudent.adapter = StudentRecyclerViewAdapter(it, {selectedItem: Student->listItemClicked(selectedItem)})
+            adapter.setList(it)
+            adapter.notifyDataSetChanged()
         })
     }
 
     private fun listItemClicked(student: Student){
-        Toast.makeText(this, "Selected student is ${student.matric}", Toast.LENGTH_LONG).show()
+        //Toast.makeText(this, "Selected student is ${student.matric}", Toast.LENGTH_LONG).show()
         studentViewModel.initUpdateAndDelete(student)
     }
 }

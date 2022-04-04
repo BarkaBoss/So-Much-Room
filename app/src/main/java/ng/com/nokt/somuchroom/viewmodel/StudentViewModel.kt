@@ -2,14 +2,12 @@ package ng.com.nokt.somuchroom.viewmodel
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import kotlinx.coroutines.Job
 import ng.com.nokt.somuchroom.db.Student
 import ng.com.nokt.somuchroom.db.StudentRepo
 import kotlinx.coroutines.launch
+import ng.com.nokt.somuchroom.Event
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -27,6 +25,10 @@ class StudentViewModel(private val studentRepo: StudentRepo): ViewModel() {
     val saveOrUpdateButtonText = MutableLiveData<String>()
     val clearOrDeleteButtonText = MutableLiveData<String>()
 
+    private val statusMessage = MutableLiveData<Event<String>>()
+    val message: LiveData<Event<String>>
+    get() = statusMessage
+
     init {
         saveOrUpdateButtonText.value = "Save"
         clearOrDeleteButtonText.value = "Clear All"
@@ -34,23 +36,29 @@ class StudentViewModel(private val studentRepo: StudentRepo): ViewModel() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun saveOrUpdate(){
-        if (isUpdateOrDelete) {
-            studentToUpdateOrDelete.matric = inputMatric.value!!
-            studentToUpdateOrDelete.course = inputCourse.value!!
-            update(studentToUpdateOrDelete)
+
+        if(inputMatric.value == null){
+            statusMessage.value = Event("Matric number can not be empty")
+        }else if (inputCourse.value == null){
+            statusMessage.value = Event("Course Code can not be empty")
         }else{
-            val matric = inputMatric.value!!
-            val course = inputCourse.value!!
-            val date = LocalDate.now()
-            val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
-            val formattedDate = date.format(formatter).toString()
+            if (isUpdateOrDelete) {
+                studentToUpdateOrDelete.matric = inputMatric.value!!
+                studentToUpdateOrDelete.course = inputCourse.value!!
+                update(studentToUpdateOrDelete)
+            }else{
+                val matric = inputMatric.value!!
+                val course = inputCourse.value!!
+                val date = LocalDate.now()
+                val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
+                val formattedDate = date.format(formatter).toString()
 
-            insert(Student(0, matric, course, formattedDate))
+                insert(Student(0, matric, course, formattedDate))
 
-            inputMatric.value = null
-            inputCourse.value = null
+                inputMatric.value = null
+                inputCourse.value = null
+            }
         }
-
     }
     fun clearOrDelete(){
         if (isUpdateOrDelete){
@@ -61,35 +69,57 @@ class StudentViewModel(private val studentRepo: StudentRepo): ViewModel() {
     }
 
     fun insert(student: Student): Job = viewModelScope.launch{
-            studentRepo.insert(student)
+        val newRowId:Long = studentRepo.insert(student)
+
+        if (newRowId > -1) {
+            statusMessage.value = Event("Student inserted successfully at $newRowId")
+        }else{
+            statusMessage.value = Event("There was a problem")
         }
+    }
 
     fun update(student: Student): Job = viewModelScope.launch{
-        studentRepo.update(student)
+        val numUpdatedRows:Int = studentRepo.update(student)
 
-        inputMatric.value = null
-        inputCourse.value = null
-        isUpdateOrDelete = false
-        studentToUpdateOrDelete = student
-        saveOrUpdateButtonText.value = "Save"
-        clearOrDeleteButtonText.value = "Clear All"
+        if (numUpdatedRows > 0) {
+            inputMatric.value = null
+            inputCourse.value = null
+            isUpdateOrDelete = false
+            studentToUpdateOrDelete = student
+            saveOrUpdateButtonText.value = "Save"
+            clearOrDeleteButtonText.value = "Clear All"
+            statusMessage.value = Event("$numUpdatedRows updated successfully")
+        }else{
+            statusMessage.value = Event("There was a problem")
+        }
     }
 
     fun delete(student: Student): Job = viewModelScope.launch{
-        studentRepo.delete(student)
+        val numRowsDeleted: Int = studentRepo.delete(student)
 
-        inputMatric.value = null
-        inputCourse.value = null
+        if (numRowsDeleted > 0) {
+            inputMatric.value = null
+            inputCourse.value = null
 
-        isUpdateOrDelete = false
-        studentToUpdateOrDelete = student
+            isUpdateOrDelete = false
+            studentToUpdateOrDelete = student
 
-        saveOrUpdateButtonText.value = "Save"
-        clearOrDeleteButtonText.value = "Clear All"
+            saveOrUpdateButtonText.value = "Save"
+            clearOrDeleteButtonText.value = "Clear All"
+            statusMessage.value = Event("$numRowsDeleted removed successfully")
+        }else{
+            statusMessage.value = Event("There was a problem")
+        }
     }
 
     fun clearALl(): Job = viewModelScope.launch{
-        studentRepo.deleteAll()
+        val numOfRowsDeleted:Int = studentRepo.deleteAll()
+
+        if (numOfRowsDeleted > 0) {
+            statusMessage.value = Event("$numOfRowsDeleted Students removed successfully")
+        }else{
+            statusMessage.value = Event("There was a problem")
+        }
     }
 
     fun initUpdateAndDelete(student: Student){
